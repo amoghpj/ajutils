@@ -1,3 +1,12 @@
+import seaborn as sns
+def plot_defaults():
+    """
+    TODO expand to specify arguments explicitly
+    """
+    sns.set(font_scale=2., 
+            font="Ubuntu", 
+            style="ticks")
+
 def plottuples(toplot, ax, c='k',lw=1.0,ls='-'):
     """Plots list of tuples
     :param toplot: contains 2d data to plot
