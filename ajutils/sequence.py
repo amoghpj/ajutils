@@ -14,11 +14,16 @@ def read_gff(p):
     return(df)
 
 def read_gb(path):
-    with open(p, "r") as infile:
+    """
+    Utility wrapper around SeqIO.read(fname, "genbank").
+    That function fails when there are multiple loci in a single
+    genbank file. This function returns a list of Seq records
+    :returns: list of Seq Records
+    """
+    with open(path, "r") as infile:
         contigs = "".join(list(infile.readlines())).split("\n//\n")
-        for contig in [c for c in dat if len(c)> 0]:
+        loci = {}
+        for contig in [c for c in contigs if len(c)> 0]:
             rec = list(SeqIO.parse(StringIO(contig),"genbank"))[0]
-            if len(rec) > 1e5:
-                loci[rec.id] = rec    
-    gb = SeqIO.read(path, "genbank")
-    return(gb)
+            loci[rec.id] = rec    
+    return(loci)
