@@ -101,7 +101,7 @@ def platereader(path,
         raise NotImplementedError
     return(df)
 
-def qpcr_reader_excel(path):
+def qpcr(path):
     """
     Return three data frames: results, samples and melt curve.
     If melt curve is absent, return None.
