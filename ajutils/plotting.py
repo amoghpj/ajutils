@@ -3,9 +3,7 @@ def plot_defaults():
     """
     TODO expand to specify arguments explicitly
     """
-    sns.set(font_scale=2., 
-            font="Ubuntu", 
-            style="ticks")
+    sns.set(style="ticks")
 
 def plottuples(toplot, ax, c='k',lw=1.0,ls='-'):
     """Plots list of tuples
