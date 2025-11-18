@@ -4,3 +4,6 @@ from .plotting import *
 from .cairo_utils import *
 #from .sequence import *
 from .readers import *
+from .writers import * 
+from .validators import * 
+from .dfutils import * 
