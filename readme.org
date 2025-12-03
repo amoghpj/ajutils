@@ -1,0 +1,15 @@
+In a terminal, navigate to the folder containing ajutils, and run
+
+#+begin_src bash
+pip install . -e
+#+end_src
+
+Test the installation by opening a python REPL
+#+begin_src bash
+python
+#+end_src
+and importing the library
+
+#+begin_src bash
+import ajutils
+#+end_src
