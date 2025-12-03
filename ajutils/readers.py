@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torchvision import models, transforms
 from itertools import product
 from .colors import colors
+from .plate import *
 import typing
 searchpath = '/Users/amogh/projects/harvard/analysis/2025-06-17-aj02-cnn-qpcr-noise-classification/annotator/'
 sys.path.insert(0, searchpath)
@@ -21,20 +22,6 @@ checkpoint = torch.load(searchpath  + 'qpcr_classifier.pth', #'20250625v2-
 net.load_state_dict(checkpoint)
 net.eval() # Set the model to evaluation mode
 
-wellmapper384 = pd.DataFrame([{"Row":r,
-                            "Column":c,
-                            "well_number":i+1}
-                           for i, (c, r) in 
-                           enumerate(product(list(range(1,25)),
-                                             ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P"]
-                                             ))])
-
-wellmapper96 = pd.DataFrame([{"Row":r,
-                            "Column":c,
-                            "well_number":i+1}
-                           for i, (c, r) in 
-                           enumerate(product(list(range(1,13)),["A","B","C","D","E","F","G","H"]
-                                             ))])
 
 def makeimage(well):
     Img = np.zeros((100))
@@ -202,7 +189,7 @@ def fixup_ct(ctarr, maxval):
             collect.append(float(v))
     return(collect)
 
-def qpcr(path, size : int =384, metadatalist: list = [] ):
+def qpcr(path, size : int =384, metadatalist: list = [] , process_noise = False):
     """
     Return three data frames: results, samples and melt curve.
     If melt curve is absent, return None.
@@ -263,14 +250,17 @@ def qpcr(path, size : int =384, metadatalist: list = [] ):
         amplification.rename({"dRn":"Delta Rn",
                               "Cycle Number":"Cycle"}, 
                              axis="columns", inplace=True)
-
-    amplification = amplification.merge(amplification.groupby(["Well"]).apply(classify).reset_index(),
-                                        on="Well")
-    results = results.merge(amplification[["Well","prediction"]].drop_duplicates(),
-                            on="Well")
+    if process_noise:
+        amplification = amplification.merge(amplification.groupby(["Well"]).apply(classify).reset_index(),
+                                            on="Well")
+        results = results.merge(amplification[["Well","prediction"]].drop_duplicates(),
+                                on="Well")
     return(results, samples, meltcurve, amplification)
 
-def process_metadata(meta, metaorder, keep_blanks=False,defaultdtype="int"):
+def process_metadata(meta : list, 
+                     metaorder: str, keep_blanks=False,defaultdtype="int", 
+                     prefix : str = "",
+                     suffix : str = ""):
     """
     Process a list of lists or numpy arrya that an be interpreted as a metadata table
     :params:
@@ -281,6 +271,12 @@ def process_metadata(meta, metaorder, keep_blanks=False,defaultdtype="int"):
     """
     meta = np.array(meta)
     numcolumns = meta.shape[1]
+    if (numcolumns-1) == 12:
+        wellnumberdf = wellmapper96
+    elif (numcolumns - 1) == 24:
+        wellnumberdf = wellmapper384
+    else:
+        raise NotImplementedError
     if ":" in metaorder:
         columns = metaorder.split(":")
     else:
@@ -301,10 +297,17 @@ def process_metadata(meta, metaorder, keep_blanks=False,defaultdtype="int"):
     if defaultdtype is not None:
         for col in columns:
             mdf[col] = mdf[col].astype(defaultdtype)
+    mdf = mdf.merge(wellnumberdf, on=["Row","Column"])
+    mdf = mdf.rename({"Row":f"{prefix}Row{suffix}",
+                      "Column":f"{prefix}Column{suffix}",
+                      "well_number":f"{prefix}well_number{suffix}",
+                      },axis=1)
     return(mdf)
 
 
-def quadrantExplode(well96, preserve_source=False):
+def quadrantExplode(well96, preserve_source=False, 
+                    prefix : str="", 
+                    suffix : str=""):
 
     """
     :params:  DataFrame 
@@ -315,36 +318,42 @@ def quadrantExplode(well96, preserve_source=False):
     """
     collect = []
     for i, sourcerow in well96.iterrows():
-        wellid = wellmapper96[(wellmapper96.Row == sourcerow.Row)\
-                              & (wellmapper96.Column == sourcerow.Column)].well_number.values[0]
-        fixedcoloffset = ((wellid -1)// 8)*32
-        dest1, dest2, dest3, dest4 = \
-            fixedcoloffset + (wellid  - (((wellid - 1)) // 8) * 8)*2 -1,\
-            fixedcoloffset + (wellid  - (((wellid - 1)) // 8) * 8)*2 ,\
-            fixedcoloffset +(wellid  - (((wellid - 1)) // 8) * 8)*2 + 15,\
-            fixedcoloffset + (wellid  - (((wellid - 1)) // 8) * 8)*2 + 16
-        attribute_columns = [c for c in well96.columns if c not in ["Row","Column"]]
-        for rep, d in enumerate([dest1, dest2, dest3, dest4]):
-            row = wellmapper384[wellmapper384.well_number  == d]
-            entry = {"Row":row.Row.values[0],
-                     "Column":row.Column.values[0], 
-                     "well_number":d,
-                     "replicate":rep+1,
-                     "Row_Source":sourcerow.Row,
-                     "Column_Source":sourcerow.Column}
-            """
-            copy over other attributes for each well
-            """
-            for col in attribute_columns:
-                entry[col] = sourcerow[col]
+        try:
+            wellid = wellmapper96[(wellmapper96.Row == sourcerow.Row)\
+                                  & (wellmapper96.Column == sourcerow.Column)].well_number.values[0]
+            fixedcoloffset = ((wellid -1)// 8)*32
+            dest1, dest2, dest3, dest4 = \
+                fixedcoloffset + (wellid  - (((wellid - 1)) // 8) * 8)*2 -1,\
+                fixedcoloffset + (wellid  - (((wellid - 1)) // 8) * 8)*2 ,\
+                fixedcoloffset +(wellid  - (((wellid - 1)) // 8) * 8)*2 + 15,\
+                fixedcoloffset + (wellid  - (((wellid - 1)) // 8) * 8)*2 + 16
+            attribute_columns = [c for c in well96.columns if c not in ["Row","Column"]]
+            for rep, d in enumerate([dest1, dest2, dest3, dest4]):
+                row = wellmapper384[wellmapper384.well_number  == d]
+                entry = {"Row":row.Row.values[0],
+                         "Column":row.Column.values[0], 
+                         "well_number":d,
+                         "replicate":rep+1,
+                         "Row_Source":sourcerow.Row,
+                         "Column_Source":sourcerow.Column}
+                """
+                copy over other attributes for each well
+                """
+                for col in attribute_columns:
+                    entry[col] = sourcerow[col]
 
-            collect.append(entry)
+                collect.append(entry)
+        except:
+            pass
     well384 = pd.DataFrame(collect)
     export_columns = well384.columns
 
     if not preserve_source:
         well384 = well384[[c for c in export_columns if "_Source" not in c]]
-
+    well384 = well384.rename({"Row":f"{prefix}Row{suffix}",
+                      "Column":f"{prefix}Column{suffix}",
+                      "well_number":f"{prefix}well_number{suffix}",
+                      },axis=1)
     return(well384)
 
 def generateQSLayout(well384: pd.DataFrame, outpath : str, groups=None):

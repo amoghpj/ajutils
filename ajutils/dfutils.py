@@ -2,7 +2,8 @@ import pandas as pd
 
 def indexColumn(df: pd.DataFrame, 
                 column: str,
-                indexname : str = "idx") -> pd.DataFrame:
+                indexname : str = "idx",
+                offset :int = 1) -> pd.DataFrame:
     """
     Generate a dataframe that pulls out `column`, and reindexes it.
     """
@@ -13,4 +14,5 @@ def indexColumn(df: pd.DataFrame,
             .reset_index(drop=True)\
             .reset_index()\
             .rename({"index":indexname}, axis=1)
+        idxdf[indexname] = idxdf[indexname] + offset
         return idxdf

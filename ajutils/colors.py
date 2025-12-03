@@ -49,3 +49,8 @@ colors = [
 """RGB(89,35,33)""",
 """RGB(248,243,53)""",
 """RGB(64,58,58)"""]
+
+colorsrgb = [(int(c.split(",")[0].replace('RGB(','')),
+              int(c.split(",")[1]),
+              int(c.split(",")[2].replace(')','')))
+              for c in colors]

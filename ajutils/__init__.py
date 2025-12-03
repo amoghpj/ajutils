@@ -7,3 +7,4 @@ from .readers import *
 from .writers import * 
 from .validators import * 
 from .dfutils import * 
+from .plate import * 

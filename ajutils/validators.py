@@ -1,12 +1,12 @@
 import pandas as pd
 from pandera import DataFrameSchema, Column, Check
-import pandera as pa
+import pandera.pandas as pa
 
 def validateProbeWorklist_96(df : pd.DataFrame,
                              row_name: str ="Row",
                              col_name: str="Column",
-                             probe_id : int="probe_id",
-                             ,
+                             probe_id : str = "probe_id",
+                             probe_name : str = "Probe_ID"
                              )\
                                 -> None:
     """Validate a 96‑well probe worklist DataFrame.
@@ -22,9 +22,11 @@ def validateProbeWorklist_96(df : pd.DataFrame,
      col_name : str, optional
          Name of the column containing column identifiers (default "Column"). Each value must be
          an integer in the range 1–12.
-     probe_id : str, optional
+     probe_name : str, optional
          Name of the column containing the probe identifier (default "probe_id"). Expected to be
          a string (for example matching r'^[A-Z]*[0-9]*$' if you require that format).
+     probe_id : str, optional
+         Name of the column containing the probe index (default "probe_id"). Integer values starting with 1.
      Returns
      -------
      None
@@ -55,49 +57,44 @@ def validateProbeWorklist_96(df : pd.DataFrame,
         {
             row_name: Column(pa.String, checks=Check.str_matches(r"^[A-H]$"), nullable=False),
             col_name: Column(pa.Int, checks=Check.in_range(1, 12), nullable=False),
+            probe_id: Column(pa.Int, nullable=False),
             probe_name: Column(pa.String, checks=Check.str_matches(r"^[A-Z]*[0-9]*$"), nullable=False),
-            org_name: Column(pa.String, nullable=False),
         },
         coerce=True)
     schema.validate(df)
 
 
-def validateSampleTransfer_384(row_name: str ="Row",
-                                col_name: str="Column",
-                                probe_name :str="Probe_ID",
-                                org_name : str="Organism")\
-                                -> pa.DataFrameSchema:
-    return pa.DataFrameSchema(
+def validateSampleTransfer_384(
+        df : pd.DataFrame,  
+        source_row :str ="sourceRow",
+        source_col:str="sourceColumn",
+        dest_row:str="destRow",
+        dest_col:str="destColumn") -> None:
+    """Return a pandera DataFrameSchema for the mapping CSV."""
+    schema = DataFrameSchema(
         {
-            row_name: Column(pa.String, checks=Check.str_matches(r"^[A-H]$"), nullable=False),
-            col_name: Column(pa.Int, checks=Check.in_range(1, 12), nullable=False),
-            probe_name: Column(pa.String, checks=Check.str_matches(r"^[A-Z]*[0-9]*$"), nullable=False),
-            org_name: Column(pa.String, nullable=False),
+            source_row: Column(
+                pa.String,
+                checks=Check.str_matches(r"^[A-P]$"),
+                nullable=False,
+            ),
+            source_col: Column(
+                pa.Int,
+                checks=Check.in_range(1, 24),
+                nullable=False,
+            ),
+            dest_row: Column(
+                pa.String,
+                checks=Check.str_matches(r"^[A-P]$"),
+                nullable=False,
+            ),
+            dest_col: Column(
+                pa.Int,
+                checks=Check.in_range(1, 24),
+                nullable=False,
+            ),
         },
-        coerce=True)
-
-
-
-
-# schema = DataFrameSchema(
-#     {
-#         ROW: Column(
-#             pa.String,
-#             checks=Check.str_matches(r"^[A-H]$"),
-#             nullable=False,
-#         ),
-#         COL: Column(
-#             pa.Int,
-#             checks=Check.in_range(1, 12),
-#             nullable=False,
-#         ),
-#         PROBE: Column(
-#             pa.String,
-#             checks=Check.str_matches(r"^[A-Z]*[0-9]*$"),
-#             nullable=False,
-#         ),
-#         ORG: Column(pa.String, nullable=False),
-#     },
-#     coerce=True,
-# )
+        coerce=True,
+    )
+    schema.validate(df)
 
